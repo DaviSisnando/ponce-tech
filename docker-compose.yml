@@ -1,0 +1,57 @@
+version: "3"
+services:
+  db:
+    image: postgres:14
+    container_name: postgres-container
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: brasil123
+      POSTGRES_DB: ponce-db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    ports:
+      - "5432:5432"
+  
+  api:
+    container_name: api-container
+    build:
+      context: ./ponce-back
+      dockerfile: Dockerfile
+    working_dir: /usr/src/ponce-back
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://postgres:brasil123@db/ponce-db?schema=public
+      - JWT_SECRET=db773146-3330-40fe-bce5-21402bcad451
+    command: bash -c "npm install --silent && npx prisma migrate dev && npx prisma generate && npm run dev2"
+    volumes:
+      - ./ponce-back/dist:/usr/src/ponce-back/dist
+      - ./ponce-back/package.json:/usr/src/ponce-back/package.json
+      - ./ponce-back:/usr/src/ponce-back
+    ports:
+      - "3001:3001"
+    depends_on:
+      - db
+    networks:
+      - app-network
+  
+  frontend:
+    build:
+      context: ./ponce-front
+    container_name: frontend-container
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+    driver: local
